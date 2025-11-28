@@ -46,9 +46,13 @@ const corsOrigins = isDevelopment ? [...allowedOrigins, 'http://localhost:*'] : 
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, or Railway healthchecks)
-    // Railway healthchecks typically don't send Origin header
+    // Allow requests with no origin (like mobile apps, curl, Railway healthchecks, or Chrome extensions)
     if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Allow Chrome extension origins (chrome-extension://)
+    if (origin.startsWith('chrome-extension://')) {
       return callback(null, true);
     }
     

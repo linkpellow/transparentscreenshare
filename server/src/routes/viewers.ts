@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { pool } from '../database';
+import { pool, isPoolAvailable } from '../database';
 import { generateViewerId } from '@usha/shared';
 
 export const viewerRoutes = Router();
@@ -15,11 +15,17 @@ viewerRoutes.post('/', async (req, res, next) => {
     
     const viewerId = generateViewerId();
     
-    await pool.query(
-      `INSERT INTO viewers (id, session_id, user_agent, remote_control_enabled)
-       VALUES ($1, $2, $3, $4)`,
-      [viewerId, sessionId, userAgent, remoteControlEnabled || false]
-    );
+    if (isPoolAvailable() && pool) {
+      try {
+        await pool.query(
+          `INSERT INTO viewers (id, session_id, user_agent, remote_control_enabled)
+           VALUES ($1, $2, $3, $4)`,
+          [viewerId, sessionId, userAgent, remoteControlEnabled || false]
+        );
+      } catch (dbError) {
+        // Ignore - viewer works without database
+      }
+    }
 
     res.status(201).json({ viewerId });
   } catch (error) {
@@ -32,10 +38,16 @@ viewerRoutes.patch('/:viewerId/activity', async (req, res, next) => {
   try {
     const { viewerId } = req.params;
     
-    await pool.query(
-      `UPDATE viewers SET last_activity = NOW() WHERE id = $1`,
-      [viewerId]
-    );
+    if (isPoolAvailable() && pool) {
+      try {
+        await pool.query(
+          `UPDATE viewers SET last_activity = NOW() WHERE id = $1`,
+          [viewerId]
+        );
+      } catch (dbError) {
+        // Ignore
+      }
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -47,6 +59,10 @@ viewerRoutes.patch('/:viewerId/activity', async (req, res, next) => {
 viewerRoutes.get('/:viewerId', async (req, res, next) => {
   try {
     const { viewerId } = req.params;
+    
+    if (!isPoolAvailable() || !pool) {
+      return res.status(404).json({ error: 'Viewer not found' });
+    }
     
     const result = await pool.query(
       `SELECT * FROM viewers WHERE id = $1`,

@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { pool } from '../database';
+import { pool, isPoolAvailable } from '../database';
 import { generateRecordingId } from '@usha/shared';
 import { uploadToS3, generateSignedUrl } from '../services/storage';
 import { processRecording } from '../services/recording';
@@ -16,6 +16,10 @@ export const recordingRoutes = Router();
 recordingRoutes.get('/:recordingId', apiRateLimit, validateRecordingId, async (req, res, next) => {
   try {
     const { recordingId } = req.params;
+    
+    if (!isPoolAvailable() || !pool) {
+      return res.status(404).json({ error: 'Recording not found' });
+    }
     
     const result = await pool.query(
       `SELECT * FROM recordings WHERE id = $1`,
@@ -44,6 +48,10 @@ recordingRoutes.get('/session/:sessionId', apiRateLimit, validateSessionId, asyn
   try {
     const { sessionId } = req.params;
     
+    if (!isPoolAvailable() || !pool) {
+      return res.json([]);
+    }
+    
     const result = await pool.query(
       `SELECT * FROM recordings WHERE session_id = $1 ORDER BY created_at DESC`,
       [sessionId]
@@ -65,11 +73,17 @@ recordingRoutes.post('/upload', recordingUploadRateLimit, validateRecordingUploa
     const recordingId = generateRecordingId();
     
     // Recording URL will be set after S3 upload
-    await pool.query(
-      `INSERT INTO recordings (id, session_id, type, url, duration, size)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [recordingId, sessionId, type, '', duration, size]
-    );
+    if (isPoolAvailable() && pool) {
+      try {
+        await pool.query(
+          `INSERT INTO recordings (id, session_id, type, url, duration, size)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [recordingId, sessionId, type, '', duration, size]
+        );
+      } catch (dbError) {
+        // Ignore - recording works without database
+      }
+    }
 
     res.status(201).json({ recordingId });
   } catch (error) {
@@ -81,6 +95,10 @@ recordingRoutes.post('/upload', recordingUploadRateLimit, validateRecordingUploa
 recordingRoutes.delete('/:recordingId', apiRateLimit, validateRecordingId, async (req, res, next) => {
   try {
     const { recordingId } = req.params;
+    
+    if (!isPoolAvailable() || !pool) {
+      return res.status(404).json({ error: 'Recording not found' });
+    }
     
     // Get recording URL for S3 deletion
     const result = await pool.query(
@@ -110,6 +128,10 @@ recordingRoutes.post('/:recordingId/share', apiRateLimit, validateRecordingId, a
     const { recordingId } = req.params;
     const { expiresIn } = req.body; // in hours
     
+    if (!isPoolAvailable() || !pool) {
+      return res.status(404).json({ error: 'Recording not found' });
+    }
+    
     const result = await pool.query(
       `SELECT * FROM recordings WHERE id = $1`,
       [recordingId]
@@ -123,14 +145,18 @@ recordingRoutes.post('/:recordingId/share', apiRateLimit, validateRecordingId, a
     const shareUrl = `${process.env.APP_URL || 'http://localhost:3000'}/recording/${recordingId}`;
     
     // Set expiration if provided
-    if (expiresIn) {
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + expiresIn);
-      
-      await pool.query(
-        `UPDATE recordings SET expires_at = $1 WHERE id = $2`,
-        [expiresAt, recordingId]
-      );
+    if (expiresIn && pool) {
+      try {
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + expiresIn);
+        
+        await pool.query(
+          `UPDATE recordings SET expires_at = $1 WHERE id = $2`,
+          [expiresAt, recordingId]
+        );
+      } catch (dbError) {
+        // Ignore
+      }
     }
 
     res.json({ shareUrl, expiresAt: recording.expiresAt });

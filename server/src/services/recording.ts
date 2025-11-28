@@ -4,7 +4,7 @@
 
 import ffmpeg from 'fluent-ffmpeg';
 import { uploadToS3 } from './storage';
-import { pool } from '../database';
+import { pool, isPoolAvailable } from '../database';
 import path from 'path';
 import fs from 'fs';
 import { logger } from '../middleware/logging';
@@ -66,19 +66,29 @@ export async function processRecording(
     const gifUrl = await uploadToS3(gifPath, `recordings/${recordingId}_preview.gif`, 'image/gif');
 
     // Update recording in database
-    await pool.query(
-      `UPDATE recordings 
-       SET url = $1, thumbnail_url = $2, gif_preview_url = $3, duration = $4, size = $5
-       WHERE id = $6`,
-      [
-        videoUrl,
-        thumbnailUrl,
-        gifUrl,
-        metadata.duration,
-        fs.statSync(outputPath).size,
-        recordingId,
-      ]
-    );
+    if (isPoolAvailable() && pool) {
+      try {
+        await pool.query(
+          `UPDATE recordings 
+           SET url = $1, thumbnail_url = $2, gif_preview_url = $3, duration = $4, size = $5
+           WHERE id = $6`,
+          [
+            videoUrl,
+            thumbnailUrl,
+            gifUrl,
+            Math.floor(metadata.duration),
+            fs.statSync(outputPath).size,
+            recordingId,
+          ]
+        );
+      } catch (dbError) {
+        // Ignore - recording processing works without database
+        logger.warn('Could not update recording in database', {
+          recordingId,
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
+      }
+    }
 
     // Clean up local files
     fs.unlinkSync(inputPath);

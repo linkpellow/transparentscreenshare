@@ -76,9 +76,16 @@ export function errorHandler(
     method: req.method,
     path: req.path,
     statusCode: (err as any).statusCode || 500,
+    errorMessage: err.message,
+    errorName: err.name,
   });
 
   const statusCode = (err as any).statusCode || 500;
+  
+  // Don't send response if headers already sent
+  if (res.headersSent) {
+    return;
+  }
   
   res.status(statusCode).json({
     error: process.env.NODE_ENV === 'production' 

@@ -8,22 +8,42 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Database connection configuration with production-ready settings
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  max: parseInt(process.env.DB_POOL_MAX || '20', 10), // Maximum pool size
-  min: parseInt(process.env.DB_POOL_MIN || '2', 10), // Minimum pool size
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection cannot be established
-  statement_timeout: 30000, // Query timeout (30 seconds)
-  query_timeout: 30000,
-});
+// Only create pool if DATABASE_URL is set
+let pool: Pool | null = null;
+
+if (process.env.DATABASE_URL) {
+  try {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT || '5432', 10),
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      max: parseInt(process.env.DB_POOL_MAX || '20', 10), // Maximum pool size
+      min: parseInt(process.env.DB_POOL_MIN || '2', 10), // Minimum pool size
+      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+      connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection cannot be established
+      statement_timeout: 30000, // Query timeout (30 seconds)
+      query_timeout: 30000,
+    });
+
+    // Handle pool errors
+    pool.on('error', (err) => {
+      console.error('Unexpected database pool error:', err);
+    });
+  } catch (error) {
+    console.warn('Failed to create database pool (continuing without DB):', error instanceof Error ? error.message : String(error));
+    pool = null;
+  }
+}
 
 export async function initializeDatabase(): Promise<void> {
+  if (!pool) {
+    console.warn('DATABASE_URL not set - skipping database initialization');
+    return;
+  }
+
   try {
     // Test connection
     await pool.query('SELECT NOW()');
@@ -45,12 +65,10 @@ export async function initializeDatabase(): Promise<void> {
   }
 }
 
-// Handle pool errors
-pool.on('error', (err) => {
-  console.error('Unexpected database pool error:', err);
-});
-
 async function createTables(): Promise<void> {
+  if (!pool) {
+    throw new Error('Database pool not initialized');
+  }
   const client = await pool.connect();
   
   try {
@@ -157,4 +175,9 @@ async function createTables(): Promise<void> {
 
 export { pool };
 export type { PoolClient };
+
+// Helper to check if pool is available
+export function isPoolAvailable(): boolean {
+  return pool !== null;
+}
 

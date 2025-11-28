@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { pool } from '../database';
+import { pool, isPoolAvailable } from '../database';
 import { generateSessionId } from '@usha/shared';
 import { Session, SessionStatus } from '@usha/shared';
 import { validateCreateSession, validateUpdateSession, validateSessionId, validateEngagementQuery } from '../middleware/validation';
@@ -30,35 +30,39 @@ sessionRoutes.post('/', sessionCreationRateLimit, validateCreateSession, async (
 
     // Try to save to database if available, but don't fail if DB is not configured
     // Note: Database is completely optional - session works without it
-    if (process.env.DATABASE_URL && pool) {
+    if (isPoolAvailable() && pool !== null) {
       try {
         // First, ensure the user exists (create if not exists) - ignore errors
         try {
-          await pool.query(
-            `INSERT INTO users (id, email, name, role)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (id) DO NOTHING`,
-            [session.hostId, `${session.hostId}@local`, session.hostId, 'user']
-          );
+          if (pool) {
+            await pool.query(
+              `INSERT INTO users (id, email, name, role)
+               VALUES ($1, $2, $3, $4)
+               ON CONFLICT (id) DO NOTHING`,
+              [session.hostId, `${session.hostId}@local`, session.hostId, 'user']
+            );
+          }
         } catch (userError) {
           // Ignore - user table might not exist or constraint might fail
         }
 
         // Then insert session - ignore errors completely
         try {
-          await pool.query(
-            `INSERT INTO sessions (id, host_id, share_type, status, remote_control_enabled, max_viewers, redirect_url)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [
-              session.id,
-              session.hostId,
-              session.shareType,
-              session.status,
-              session.remoteControlEnabled,
-              session.maxViewers,
-              session.redirectUrl,
-            ]
-          );
+          if (pool) {
+            await pool.query(
+              `INSERT INTO sessions (id, host_id, share_type, status, remote_control_enabled, max_viewers, redirect_url)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [
+                session.id,
+                session.hostId,
+                session.shareType,
+                session.status,
+                session.remoteControlEnabled,
+                session.maxViewers,
+                session.redirectUrl,
+              ]
+            );
+          }
         } catch (sessionError) {
           // Completely ignore - session works without database
           // Log only in development
@@ -159,13 +163,31 @@ sessionRoutes.patch('/:sessionId', apiRateLimit, validateSessionId, validateUpda
 
     values.push(sessionId);
 
-    await pool.query(
-      `UPDATE sessions SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${paramCount}`,
-      values
-    );
+    if (isPoolAvailable() && pool) {
+      try {
+        await pool.query(
+          `UPDATE sessions SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${paramCount}`,
+          values
+        );
 
-    const result = await pool.query(`SELECT * FROM sessions WHERE id = $1`, [sessionId]);
-    res.json(result.rows[0]);
+        const result = await pool.query(`SELECT * FROM sessions WHERE id = $1`, [sessionId]);
+        res.json(result.rows[0]);
+      } catch (dbError) {
+        // Return basic session info if DB fails
+        res.json({
+          id: sessionId,
+          ...updates,
+          status: updates.status || 'active',
+        });
+      }
+    } else {
+      // No database - return basic session info
+      res.json({
+        id: sessionId,
+        ...updates,
+        status: updates.status || 'active',
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -203,15 +225,22 @@ sessionRoutes.get('/:sessionId/engagement', apiRateLimit, validateSessionId, val
     const { sessionId } = req.params;
     const limit = (req.query.limit as number | undefined) || 100;
     
-    const result = await pool.query(
-      `SELECT * FROM engagement_events 
-       WHERE session_id = $1 
-       ORDER BY timestamp DESC 
-       LIMIT $2`,
-      [sessionId, limit]
-    );
-
-    res.json(result.rows);
+    if (isPoolAvailable() && pool) {
+      try {
+        const result = await pool.query(
+          `SELECT * FROM engagement_events 
+           WHERE session_id = $1 
+           ORDER BY timestamp DESC 
+           LIMIT $2`,
+          [sessionId, limit]
+        );
+        res.json(result.rows);
+      } catch (dbError) {
+        res.json([]);
+      }
+    } else {
+      res.json([]);
+    }
   } catch (error) {
     next(error);
   }
