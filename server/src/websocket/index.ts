@@ -49,18 +49,23 @@ export function setupWebSocket(wss: WebSocketServer): void {
     }
     connections.get(sessionId)!.push(connection);
 
-    // Register viewer in database if not host
+    // Register viewer in database if not host (optional - don't block if DB unavailable)
     if (!isHost && viewerId) {
-      pool.query(
-        `INSERT INTO viewers (id, session_id, user_agent, remote_control_enabled)
-         VALUES ($1, $2, $3, $4)`,
-        [viewerId, sessionId, req.headers['user-agent'] || '', false]
-      ).catch((err) => {
-        logger.error('Error registering viewer in database', err as Error, {
-          sessionId,
-          viewerId,
+      // Only try database if DATABASE_URL is set
+      if (process.env.DATABASE_URL && pool) {
+        pool.query(
+          `INSERT INTO viewers (id, session_id, user_agent, remote_control_enabled)
+           VALUES ($1, $2, $3, $4)`,
+          [viewerId, sessionId, req.headers['user-agent'] || '', false]
+        ).catch((err) => {
+          // Log but don't fail - connection works without database
+          logger.warn('Could not register viewer in database (continuing without DB)', {
+            sessionId,
+            viewerId,
+            error: err instanceof Error ? err.message : String(err),
+          });
         });
-      });
+      }
     }
 
     logger.info('WebSocket client connected', {
@@ -159,20 +164,31 @@ async function handleMessage(
       break;
 
     case 'engagement':
-      // Store engagement events in database
+      // Store engagement events in database (optional - don't block if DB unavailable)
       if (!isHost && viewerId) {
         const event = message.data as EngagementEvent;
-        await pool.query(
-          `INSERT INTO engagement_events (id, viewer_id, session_id, event_type, event_data)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [
-            event.id,
-            viewerId,
-            sessionId,
-            event.type,
-            JSON.stringify(event.data),
-          ]
-        ).catch(console.error);
+        
+        // Try to store in database if available
+        if (process.env.DATABASE_URL && pool) {
+          pool.query(
+            `INSERT INTO engagement_events (id, viewer_id, session_id, event_type, event_data)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+              event.id,
+              viewerId,
+              sessionId,
+              event.type,
+              JSON.stringify(event.data),
+            ]
+          ).catch((err) => {
+            // Log but don't fail - engagement tracking works without database
+            logger.warn('Could not store engagement event in database', {
+              sessionId,
+              viewerId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+        }
 
         // Forward to host for real-time preview
         const hostConnection = sessionConnections.find(c => c.isHost);
