@@ -7,8 +7,16 @@ WORKDIR /app
 # Copy all package files
 COPY package*.json ./
 COPY shared/package.json ./shared/
+COPY shared/tsconfig.json ./shared/
+COPY shared/src ./shared/src
 COPY server/package.json ./server/
+COPY server/tsconfig.json ./server/
+COPY server/src ./server/src
 COPY viewer/package.json ./viewer/
+COPY viewer/tsconfig.json ./viewer/
+COPY viewer/vite.config.ts ./viewer/
+COPY viewer/src ./viewer/src
+COPY viewer/index.html ./viewer/
 
 # Install root dependencies
 RUN npm install
