@@ -23,8 +23,7 @@ RUN npm install
 
 # Install and build shared package
 WORKDIR /app/shared
-RUN npm install
-RUN npm run build || (echo "Build failed, checking files..." && ls -la && cat tsconfig.json && exit 1)
+RUN npm install && npm run build
 
 # Install and build viewer
 WORKDIR /app/viewer
