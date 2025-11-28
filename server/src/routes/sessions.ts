@@ -28,19 +28,27 @@ sessionRoutes.post('/', sessionCreationRateLimit, validateCreateSession, async (
       redirectUrl,
     };
 
-    await pool.query(
-      `INSERT INTO sessions (id, host_id, share_type, status, remote_control_enabled, max_viewers, redirect_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        session.id,
-        session.hostId,
-        session.shareType,
-        session.status,
-        session.remoteControlEnabled,
-        session.maxViewers,
-        session.redirectUrl,
-      ]
-    );
+    // Try to save to database if available, but don't fail if DB is not configured
+    if (process.env.DATABASE_URL && pool) {
+      try {
+        await pool.query(
+          `INSERT INTO sessions (id, host_id, share_type, status, remote_control_enabled, max_viewers, redirect_url)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            session.id,
+            session.hostId,
+            session.shareType,
+            session.status,
+            session.remoteControlEnabled,
+            session.maxViewers,
+            session.redirectUrl,
+          ]
+        );
+      } catch (dbError) {
+        // Log but don't fail - session can work without database
+        console.warn('Could not save session to database (continuing without DB):', dbError instanceof Error ? dbError.message : String(dbError));
+      }
+    }
 
     res.status(201).json(session);
   } catch (error) {
@@ -53,17 +61,35 @@ sessionRoutes.get('/:sessionId', apiRateLimit, validateSessionId, async (req, re
   try {
     const { sessionId } = req.params;
     
-    const result = await pool.query(
-      `SELECT * FROM sessions WHERE id = $1`,
-      [sessionId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Session not found' });
+    // If database is not available, return a basic session object
+    if (!process.env.DATABASE_URL || !pool) {
+      return res.json({
+        id: sessionId,
+        status: 'active',
+        // Return minimal session info when DB is not available
+      });
     }
+    
+    try {
+      const result = await pool.query(
+        `SELECT * FROM sessions WHERE id = $1`,
+        [sessionId]
+      );
 
-    const session = result.rows[0];
-    res.json(session);
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      const session = result.rows[0];
+      res.json(session);
+    } catch (dbError) {
+      // If database query fails, return basic session info
+      console.warn('Could not fetch session from database (returning basic info):', dbError instanceof Error ? dbError.message : String(dbError));
+      res.json({
+        id: sessionId,
+        status: 'active',
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -119,12 +145,22 @@ sessionRoutes.get('/:sessionId/viewers', apiRateLimit, validateSessionId, async 
   try {
     const { sessionId } = req.params;
     
-    const result = await pool.query(
-      `SELECT * FROM viewers WHERE session_id = $1 ORDER BY joined_at DESC`,
-      [sessionId]
-    );
-
-    res.json(result.rows);
+    // If database is not available, return empty array (viewers tracked in WebSocket connections)
+    if (!process.env.DATABASE_URL || !pool) {
+      return res.json([]);
+    }
+    
+    try {
+      const result = await pool.query(
+        `SELECT * FROM viewers WHERE session_id = $1 ORDER BY joined_at DESC`,
+        [sessionId]
+      );
+      res.json(result.rows);
+    } catch (dbError) {
+      // If database query fails, return empty array instead of error
+      console.warn('Could not fetch viewers from database (returning empty):', dbError instanceof Error ? dbError.message : String(dbError));
+      res.json([]);
+    }
   } catch (error) {
     next(error);
   }
