@@ -10,11 +10,15 @@ dotenv.config();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.string().regex(/^\d+$/).transform(Number).default('3000'),
+  PORT: z.union([
+    z.string().regex(/^\d+$/).transform(Number),
+    z.number(),
+    z.string().transform(Number)
+  ]).default(3000),
   HOST: z.string().default('0.0.0.0'),
   
   // Database
-  DATABASE_URL: z.string().url().optional(),
+  DATABASE_URL: z.union([z.string().url(), z.string()]).optional(),
   DB_HOST: z.string().optional(),
   DB_PORT: z.string().regex(/^\d+$/).optional(),
   DB_NAME: z.string().optional(),
@@ -33,7 +37,7 @@ const envSchema = z.object({
   ALLOWED_ORIGINS: z.string().optional(),
   
   // App URL
-  APP_URL: z.string().url().optional(),
+  APP_URL: z.union([z.string().url(), z.string()]).optional(),
   
   // Recording storage
   RECORDING_STORAGE_PATH: z.string().default('./recordings'),
@@ -51,15 +55,15 @@ try {
   validatedEnv = envSchema.parse(process.env);
 } catch (error) {
   if (error instanceof z.ZodError) {
-    logger.error('Environment variable validation failed', undefined, {
-      errors: error.errors.map(e => ({
-        path: e.path.join('.'),
-        message: e.message,
-      })),
-    });
+    console.error('Environment variable validation failed:', error.errors.map(e => ({
+      path: e.path.join('.'),
+      message: e.message,
+      received: e.received,
+    })));
     
     // In production, exit on validation failure
     if (process.env.NODE_ENV === 'production') {
+      console.error('Exiting due to validation failure in production');
       process.exit(1);
     }
   }
