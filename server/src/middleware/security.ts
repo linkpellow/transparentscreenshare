@@ -19,6 +19,7 @@ export function setupSecurityHeaders(app: any): void {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Needed for viewer
+        scriptSrcAttr: ["'none'"], // Block inline event handlers (onclick, etc.)
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'", "wss:", "ws:"],
         fontSrc: ["'self'", "data:"],

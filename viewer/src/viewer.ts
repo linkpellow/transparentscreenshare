@@ -447,12 +447,13 @@ function handleSessionEnded() {
 function showError(message: string) {
   videoOverlay.classList.remove('hidden');
   loadingSpinner.style.display = 'block';
+  const reloadButtonId = 'error-reload-btn';
   loadingSpinner.innerHTML = `
     <div style="color: #ef4444; font-size: 16px; text-align: center; padding: 20px;">
       <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
       <p style="margin-bottom: 8px; font-weight: 600;">Error</p>
       <p style="color: #ccc; font-size: 14px; white-space: pre-line;">${message}</p>
-      <button onclick="window.location.reload()" style="
+      <button id="${reloadButtonId}" style="
         margin-top: 16px;
         padding: 8px 16px;
         background: #667eea;
@@ -464,5 +465,13 @@ function showError(message: string) {
       ">Reload Page</button>
     </div>
   `;
+  
+  // Add event listener instead of inline onclick
+  const reloadButton = document.getElementById(reloadButtonId);
+  if (reloadButton) {
+    reloadButton.addEventListener('click', () => {
+      window.location.reload();
+    });
+  }
 }
 
