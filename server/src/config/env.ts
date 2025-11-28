@@ -56,8 +56,8 @@ try {
 } catch (error) {
   if (error instanceof z.ZodError) {
     console.error('Environment variable validation failed:', error.errors.map(e => ({
-      path: e.path.join('.'),
-      message: e.message,
+        path: e.path.join('.'),
+        message: e.message,
       code: e.code,
     })));
     

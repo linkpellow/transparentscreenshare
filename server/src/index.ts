@@ -122,14 +122,14 @@ server.on('error', (error: NodeJS.ErrnoException) => {
 
 // Initialize database (non-blocking - server starts even if DB fails)
 if (process.env.DATABASE_URL) {
-  initializeDatabase()
-    .then(() => {
-      console.log('Database initialized');
-    })
-    .catch((error) => {
+initializeDatabase()
+  .then(() => {
+    console.log('Database initialized');
+  })
+  .catch((error) => {
       console.error('Failed to initialize database (continuing without DB):', error.message);
       // Don't exit - server can run without database for basic functionality
-    });
+  });
 } else {
   console.warn('DATABASE_URL not set - server running without database');
 }
