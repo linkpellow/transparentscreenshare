@@ -67,16 +67,18 @@ try {
 }
 
 // Validate required variables for production
+// Note: DATABASE_URL is optional - server will start but database features won't work
 if (validatedEnv.NODE_ENV === 'production') {
-  const required = ['DATABASE_URL'];
-  const missing = required.filter(key => !process.env[key]);
+  // Database is optional - server can start without it
+  // const required = ['DATABASE_URL'];
+  // const missing = required.filter(key => !process.env[key]);
   
-  if (missing.length > 0) {
-    logger.error('Missing required environment variables for production', undefined, {
-      missing,
-    });
-    process.exit(1);
-  }
+  // if (missing.length > 0) {
+  //   logger.error('Missing required environment variables for production', undefined, {
+  //     missing,
+  //   });
+  //   process.exit(1);
+  // }
 }
 
 export const env = validatedEnv;

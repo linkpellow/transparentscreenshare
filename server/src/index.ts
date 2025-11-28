@@ -97,29 +97,33 @@ setupWebSocket(wss);
 // Error handler
 app.use(errorHandler);
 
-// Initialize database
-initializeDatabase()
-  .then(() => {
-    console.log('Database initialized');
-    
-    // Start server
-    const HOST = env.HOST; // Listen on all interfaces for network access
-    const port = parseInt(PORT.toString(), 10);
-    server.listen(port, HOST, () => {
-      console.log(`Server running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${port}`);
-      console.log(`WebSocket server ready`);
-      if (HOST === '0.0.0.0') {
-        console.log(`\n💡 For remote viewers, configure extension with your network IP:`);
-        console.log(`   Example: http://192.168.1.100:${port}`);
-        console.log(`   Or use your domain: https://transparentinsurance.net`);
-        console.log(`   Find your IP: ipconfig getifaddr en0 (macOS) or ipconfig (Windows)\n`);
-      }
+// Start server first, then initialize database (non-blocking)
+const HOST = env.HOST; // Listen on all interfaces for network access
+const port = parseInt(PORT.toString(), 10);
+server.listen(port, HOST, () => {
+  console.log(`Server running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${port}`);
+  console.log(`WebSocket server ready`);
+  if (HOST === '0.0.0.0') {
+    console.log(`\n💡 For remote viewers, configure extension with your network IP:`);
+    console.log(`   Example: http://192.168.1.100:${port}`);
+    console.log(`   Or use your domain: https://transparentinsurance.net`);
+    console.log(`   Find your IP: ipconfig getifaddr en0 (macOS) or ipconfig (Windows)\n`);
+  }
+});
+
+// Initialize database (non-blocking - server starts even if DB fails)
+if (process.env.DATABASE_URL) {
+  initializeDatabase()
+    .then(() => {
+      console.log('Database initialized');
+    })
+    .catch((error) => {
+      console.error('Failed to initialize database (continuing without DB):', error.message);
+      // Don't exit - server can run without database for basic functionality
     });
-  })
-  .catch((error) => {
-    console.error('Failed to initialize database:', error);
-    process.exit(1);
-  });
+} else {
+  console.warn('DATABASE_URL not set - server running without database');
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
