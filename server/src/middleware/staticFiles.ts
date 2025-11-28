@@ -14,6 +14,7 @@ export function setupStaticFiles(app: Express): void {
     path.resolve(__dirname, '../../viewer/dist'), // Development
     path.resolve(__dirname, '../../../viewer/dist'), // Production (if server is in dist/)
     path.resolve(process.cwd(), 'viewer/dist'), // Absolute from cwd
+    path.resolve(process.cwd(), '../viewer/dist'), // Production (server in /app/server, viewer in /app/viewer)
     path.join(process.cwd(), 'viewer', 'dist'), // Alternative
   ];
   
