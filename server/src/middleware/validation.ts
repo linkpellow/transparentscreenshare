@@ -56,9 +56,15 @@ export function validateUserId(req: Request, res: Response, next: NextFunction):
 const createSessionSchema = z.object({
   hostId: z.string().min(1).max(255).regex(/^[a-zA-Z0-9_-]+$/),
   shareType: z.enum(['desktop', 'window', 'tab']),
-  remoteControlEnabled: z.boolean().optional().default(false),
-  maxViewers: z.number().int().min(1).max(100).optional(),
-  redirectUrl: z.string().url().optional().or(z.literal('')),
+  remoteControlEnabled: z.union([
+    z.boolean(),
+    z.string().transform(val => val === 'true')
+  ]).optional().default(false),
+  maxViewers: z.union([
+    z.number().int().min(1).max(100),
+    z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1).max(100))
+  ]).optional(),
+  redirectUrl: z.union([z.string().url(), z.literal('')]).optional(),
 });
 
 export function validateCreateSession(req: Request, res: Response, next: NextFunction): void {

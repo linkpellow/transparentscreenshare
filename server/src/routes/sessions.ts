@@ -52,6 +52,10 @@ sessionRoutes.post('/', sessionCreationRateLimit, validateCreateSession, async (
 
     res.status(201).json(session);
   } catch (error) {
+    // Log the error for debugging
+    console.error('Error creating session:', error);
+    console.error('Request body:', req.body);
+    console.error('Error details:', error instanceof Error ? error.stack : String(error));
     next(error);
   }
 });

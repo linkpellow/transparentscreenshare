@@ -34,12 +34,22 @@ export function errorHandler(
     return;
   }
 
-  // Handle database errors
-  if (err.name === 'PostgresError' || err.message.includes('database')) {
-    logger.error('Database error', err as Error, {
+  // Handle database errors - but don't fail if DB is optional
+  if (err.name === 'PostgresError' || err.message.includes('database') || err.message.includes('relation') || err.message.includes('does not exist')) {
+    logger.warn('Database error (may be expected if DB not configured)', {
       method: req.method,
       path: req.path,
+      error: err.message,
     });
+    
+    // If database is not configured, return a more helpful error
+    if (!process.env.DATABASE_URL) {
+      res.status(500).json({
+        error: 'Database not configured',
+        message: 'This endpoint requires a database. Please configure DATABASE_URL or use endpoints that work without a database.',
+      });
+      return;
+    }
     
     res.status(500).json({
       error: process.env.NODE_ENV === 'production'
