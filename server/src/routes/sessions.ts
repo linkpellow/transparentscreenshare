@@ -14,6 +14,13 @@ export const sessionRoutes = Router();
 // Create new session
 sessionRoutes.post('/', sessionCreationRateLimit, validateCreateSession, async (req, res, next) => {
   try {
+    console.log('Session creation request received:', {
+      method: req.method,
+      path: req.path,
+      body: req.body,
+      origin: req.headers.origin,
+    });
+    
     const { hostId, shareType, remoteControlEnabled, maxViewers, redirectUrl } = req.body;
     
     const sessionId = generateSessionId();
