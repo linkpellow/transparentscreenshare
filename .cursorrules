@@ -1,0 +1,42 @@
+# Usha Project Rules
+
+## Code Style
+- Use TypeScript for all new code
+- Follow strict TypeScript configuration
+- Use async/await over promises
+- Prefer named exports over default exports
+- Use meaningful variable and function names
+
+## Architecture
+- Keep extension, server, and viewer as separate modules
+- Use shared package for common types and utilities
+- Follow RESTful API conventions
+- Use WebSocket for real-time communication
+- Implement proper error handling
+
+## Security
+- Never commit secrets or API keys
+- Use environment variables for configuration
+- Validate all user inputs
+- Sanitize data before database operations
+- Use parameterized queries for database
+
+## Performance
+- Optimize video compression settings
+- Use connection pooling for database
+- Implement proper caching where appropriate
+- Minimize bundle sizes
+- Lazy load components when possible
+
+## Testing
+- Write unit tests for utilities
+- Integration tests for API endpoints
+- E2E tests for critical user flows
+- Test error scenarios
+
+## Documentation
+- Document all public APIs
+- Include JSDoc comments for complex functions
+- Keep README files up to date
+- Document architecture decisions
+

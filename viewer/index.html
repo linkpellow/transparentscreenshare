@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usha - Screen Sharing Viewer</title>
+  <link rel="stylesheet" href="/src/styles/viewer.css">
+</head>
+<body>
+  <div class="viewer-container">
+    <header class="viewer-header">
+      <div class="header-content">
+        <h1>Usha</h1>
+        <div class="connection-status" id="connectionStatus">
+          <span class="status-dot"></span>
+          <span class="status-text">Connecting...</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="viewer-main">
+      <div class="video-container" id="videoContainer">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="video-overlay" id="videoOverlay">
+          <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner"></div>
+            <p>Connecting to session...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls-panel" id="controlsPanel">
+        <div class="control-group">
+          <button class="control-btn" id="fullscreenBtn" title="Fullscreen">
+            <span>⛶</span>
+          </button>
+          <button class="control-btn" id="zoomInBtn" title="Zoom In">
+            <span>+</span>
+          </button>
+          <button class="control-btn" id="zoomOutBtn" title="Zoom Out">
+            <span>−</span>
+          </button>
+          <button class="control-btn" id="resetZoomBtn" title="Reset Zoom">
+            <span>⌂</span>
+          </button>
+        </div>
+        <div class="zoom-indicator" id="zoomIndicator">100%</div>
+      </div>
+    </main>
+
+    <div class="session-ended" id="sessionEnded" style="display: none;">
+      <div class="ended-content">
+        <h2>Session Ended</h2>
+        <p>The host has ended the screen sharing session.</p>
+        <div id="redirectMessage" style="display: none;">
+          <p>Redirecting in <span id="redirectCountdown">5</span> seconds...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/viewer.ts"></script>
+</body>
+</html>
+

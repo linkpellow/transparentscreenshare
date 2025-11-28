@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usha Screen Sharing</title>
+  <link rel="stylesheet" href="styles/popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Usha</h1>
+      <div class="status-indicator" id="statusIndicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Ready</span>
+      </div>
+    </header>
+
+    <main>
+      <div class="share-options" id="shareOptions">
+        <h2>Share Screen</h2>
+        <button class="share-btn" data-type="desktop">
+          <span class="icon">🖥️</span>
+          <span>Entire Screen</span>
+        </button>
+        <button class="share-btn" data-type="window">
+          <span class="icon">🪟</span>
+          <span>Application Window</span>
+        </button>
+        <button class="share-btn" data-type="tab">
+          <span class="icon">📑</span>
+          <span>Browser Tab</span>
+        </button>
+      </div>
+
+      <div class="session-controls hidden" id="sessionControls">
+        <div class="session-info">
+          <div class="info-row">
+            <span class="label">Session ID:</span>
+            <span class="value" id="sessionId">-</span>
+            <button class="copy-btn" id="copySessionId" title="Copy link">📋</button>
+          </div>
+          <div class="info-row">
+            <span class="label">Viewer Link:</span>
+            <div class="link-container">
+              <input type="text" id="viewerLink" readonly class="viewer-link-input" />
+              <button class="copy-btn" id="copyViewerLink" title="Copy link">📋</button>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="label">Viewers:</span>
+            <span class="value" id="viewerCount">0</span>
+          </div>
+          <div class="info-row server-config">
+            <span class="label">Server URL:</span>
+            <input type="text" id="serverUrlInput" placeholder="https://screenshare.transparentinsurance.net" class="server-url-input" />
+            <button class="copy-btn" id="saveServerUrl" title="Save">💾</button>
+          </div>
+        </div>
+
+        <div class="controls">
+          <label class="checkbox-label">
+            <input type="checkbox" id="remoteControlEnabled">
+            <span>Enable Remote Control</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="recordSession">
+            <span>Record Session</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="recordWebcam">
+            <span>Include Webcam</span>
+          </label>
+        </div>
+
+        <div class="preview-container">
+          <h3>Viewer Preview</h3>
+          <video id="previewVideo" autoplay muted></video>
+        </div>
+
+        <button class="stop-btn" id="stopSharing">Stop Sharing</button>
+      </div>
+    </main>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
+
