@@ -58,7 +58,7 @@ try {
     console.error('Environment variable validation failed:', error.errors.map(e => ({
       path: e.path.join('.'),
       message: e.message,
-      received: e.received,
+      code: e.code,
     })));
     
     // In production, exit on validation failure
