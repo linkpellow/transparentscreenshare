@@ -329,17 +329,24 @@ async function createSessionOnServer(sessionId: string, shareType: ShareType): P
       body: JSON.stringify({
         hostId,
         shareType,
-        remoteControlEnabled: sessionState.remoteControlEnabled,
+        remoteControlEnabled: sessionState.remoteControlEnabled || false,
         maxViewers: 10,
       }),
     });
 
     if (!response.ok) {
-      console.warn('Failed to create session on server:', await response.text());
+      const errorText = await response.text();
+      console.warn('Failed to create session on server:', errorText);
+      // Don't throw - session can work without server registration
+      // WebRTC will work via WebSocket connection
+    } else {
+      const session = await response.json();
+      console.log('Session created on server:', session.id);
     }
   } catch (error) {
-    console.error('Error creating session on server:', error);
+    console.warn('Error creating session on server (continuing anyway):', error);
     // Don't fail the sharing if server is unavailable
+    // WebRTC will work via direct WebSocket connection
   }
 }
 
