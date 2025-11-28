@@ -4,17 +4,29 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY server/package.json ./
-COPY shared/package.json ../shared/
+# Copy all package files
+COPY package*.json ./
+COPY shared/package.json ./shared/
+COPY server/package.json ./server/
+COPY viewer/package.json ./viewer/
 
-# Install dependencies
-RUN npm install --production
+# Install root dependencies
+RUN npm install
 
-# Copy built files
-COPY server/dist ./dist
-COPY viewer/dist ../viewer/dist
-COPY shared/dist ../shared/dist
+# Install and build shared package
+WORKDIR /app/shared
+RUN npm install && npm run build
+
+# Install and build viewer
+WORKDIR /app/viewer
+RUN npm install && npm run build
+
+# Install server dependencies and build
+WORKDIR /app/server
+RUN npm install && npm run build
+
+# Go back to server directory for runtime
+WORKDIR /app/server
 
 # Expose port
 EXPOSE 3000
