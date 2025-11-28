@@ -46,7 +46,8 @@ const corsOrigins = isDevelopment ? [...allowedOrigins, 'http://localhost:*'] : 
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (like mobile apps, curl, or Railway healthchecks)
+    // Railway healthchecks typically don't send Origin header
     if (!origin) {
       return callback(null, true);
     }
@@ -73,7 +74,7 @@ app.use(express.urlencoded({ extended: true, limit: requestSizeLimit.urlencoded 
 // Request logging
 app.use(requestLogger);
 
-// Health check
+// Health check - must be before CORS to allow Railway healthchecks
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
