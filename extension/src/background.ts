@@ -208,11 +208,24 @@ async function initializeWebRTC(streamId: string, sessionId: string) {
   // In service worker context, we must have a valid tab ID
   let tabId: number | null | undefined = activeTabId;
   
-  // If we don't have activeTabId, query for the active tab
+  // If we don't have activeTabId, query for the active tab (exclude extension pages)
   if (!tabId) {
     try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tabs && tabs.length > 0 && tabs[0].id !== undefined) {
+      // Filter out extension pages (chrome-extension://) and find a real web page
+      const webTab = tabs.find(tab => 
+        tab.id && 
+        tab.url && 
+        !tab.url.startsWith('chrome-extension://') &&
+        !tab.url.startsWith('chrome://') &&
+        !tab.url.startsWith('about:')
+      );
+      
+      if (webTab && webTab.id !== undefined) {
+        tabId = webTab.id;
+        activeTabId = tabId;
+      } else if (tabs.length > 0 && tabs[0].id !== undefined) {
+        // Fallback to first tab if no web tab found
         tabId = tabs[0].id;
         activeTabId = tabId;
       }
@@ -228,20 +241,41 @@ async function initializeWebRTC(streamId: string, sessionId: string) {
     return;
   }
   
-  // Verify tab still exists before sending message
+  // Verify tab still exists and is a web page before sending message
   try {
     const tab = await chrome.tabs.get(tabId);
     if (!tab || !tab.id) {
       console.warn('Tab no longer exists');
       return;
     }
+    
+    // Check if it's an extension page - content scripts don't work there
+    if (tab.url && (tab.url.startsWith('chrome-extension://') || tab.url.startsWith('chrome://'))) {
+      console.warn('Cannot inject content script into extension page:', tab.url);
+      // Try to find any web page tab instead
+      const allTabs = await chrome.tabs.query({});
+      const webTab = allTabs.find(t => 
+        t.id && 
+        t.url && 
+        !t.url.startsWith('chrome-extension://') &&
+        !t.url.startsWith('chrome://')
+      );
+      if (webTab && webTab.id) {
+        tabId = webTab.id;
+        activeTabId = tabId;
+      } else {
+        console.error('No web page tabs found to inject content script');
+        return;
+      }
+    }
   } catch (error) {
     console.warn('Tab not found or invalid:', error);
     return;
   }
   
-  // Send message to content script
+  // Inject content script if needed, then send message
   try {
+    // Try to send message first
     await chrome.tabs.sendMessage(tabId, {
       type: 'INIT_WEBRTC',
       sessionId,
@@ -249,9 +283,30 @@ async function initializeWebRTC(streamId: string, sessionId: string) {
       serverUrl,
     });
   } catch (error) {
-      // Tab might not have content script injected yet, or tab was closed
-      // This is not critical - content script can initialize when it receives the stream
-      console.log('Could not send INIT_WEBRTC message (content script may not be ready):', error);
+    // If content script isn't ready, try to inject it
+    console.log('Content script not ready, attempting to inject...');
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content.js']
+      });
+      
+      // Wait a bit for script to initialize, then try again
+      setTimeout(async () => {
+        try {
+          await chrome.tabs.sendMessage(tabId!, {
+            type: 'INIT_WEBRTC',
+            sessionId,
+            streamId,
+            serverUrl,
+          });
+        } catch (retryError) {
+          console.error('Failed to send INIT_WEBRTC after injection:', retryError);
+        }
+      }, 500);
+    } catch (injectError) {
+      console.error('Could not inject content script:', injectError);
+    }
   }
 }
 
