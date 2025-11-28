@@ -98,17 +98,26 @@ setupWebSocket(wss);
 app.use(errorHandler);
 
 // Start server first, then initialize database (non-blocking)
-const HOST = env.HOST; // Listen on all interfaces for network access
-const port = parseInt(PORT.toString(), 10);
+// Railway sets PORT automatically - use it or default to 3000
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : parseInt(PORT.toString(), 10);
+const HOST = env.HOST || '0.0.0.0'; // Listen on all interfaces for network access
+
+console.log(`Starting server on port ${port}, host ${HOST}`);
+console.log(`PORT from env: ${process.env.PORT}`);
+console.log(`PORT from config: ${PORT}`);
+
 server.listen(port, HOST, () => {
-  console.log(`Server running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${port}`);
-  console.log(`WebSocket server ready`);
-  if (HOST === '0.0.0.0') {
-    console.log(`\n💡 For remote viewers, configure extension with your network IP:`);
-    console.log(`   Example: http://192.168.1.100:${port}`);
-    console.log(`   Or use your domain: https://transparentinsurance.net`);
-    console.log(`   Find your IP: ipconfig getifaddr en0 (macOS) or ipconfig (Windows)\n`);
+  console.log(`✅ Server running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${port}`);
+  console.log(`✅ WebSocket server ready`);
+  console.log(`✅ Health check available at /health`);
+});
+
+server.on('error', (error: NodeJS.ErrnoException) => {
+  console.error('❌ Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use`);
   }
+  process.exit(1);
 });
 
 // Initialize database (non-blocking - server starts even if DB fails)
